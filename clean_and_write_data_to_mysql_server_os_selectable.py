@@ -16,12 +16,8 @@ import warnings
 # I'm doing this even after setting force_download=True
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-
-
-
 print(torch.cuda.is_available())  # should be True
-print(torch.version.cuda)         # should match your install
-
+print(torch.version.cuda)  # should match your install
 
 pd.set_option('display.max_columns', None)
 
@@ -31,7 +27,7 @@ MODEL_MAP = {
     "emotion": "j-hartmann/emotion-english-distilroberta-base"
 }
 
-OS=platform.system()
+OS = platform.system()
 
 if OS == "Linux":
     ONEDRIVE_PATH = "/home/andrew/OneDrive"
@@ -41,9 +37,12 @@ else:
     print("Invalid OS")
     sys.exit(1)
 
-#SQLSERVER = "192.168.1.150"
-SQLSERVER = "localhost"
-#Functions
+# SQLSERVER = "192.168.1.150"
+#SQLSERVER = "localhost"
+SQLSERVER = "192.168.1.197"
+
+
+# Functions
 def process_saved_chunks(analysis_type, df_name):
     files = list(Path(f"{analysis_type}_chunks").glob(f"{df_name}_{analysis_type}_chunk_*.parquet"))
     file_chunks = []
@@ -54,6 +53,7 @@ def process_saved_chunks(analysis_type, df_name):
         except Exception as e:
             print(f"⚠️ Skipped {f.name}: {e}")
     return file_chunks
+
 
 class ReviewAnalyzer:
     def __init__(self, analysis_type, model_name=None, data_frame=None, save_dir=None,
@@ -112,13 +112,12 @@ class ReviewAnalyzer:
             print(f"[{datetime.now()}] Processing chunk {chunk_id}...")
 
             if self._analysis_type == "sentiment":
-                self._process_sentiment_chunk(chunk_id, chunk_df,"work_id",self._device)
+                self._process_sentiment_chunk(chunk_id, chunk_df, "work_id", self._device)
             else:
                 chunk_df = chunk_df.copy()
                 self._process_emotion_chunk(chunk_id, chunk_df)
 
-
-    def _process_sentiment_chunk(self, chunk_id, chunk_df,key_column,device):
+    def _process_sentiment_chunk(self, chunk_id, chunk_df, key_column, device):
         texts = chunk_df[self._text_column].tolist()
         all_preds = []
 
@@ -183,7 +182,7 @@ class ReviewAnalyzer:
 
         assert len(_all_scores) == len(chunk_df), "Mismatch between scores and chunk size"
         chunk_df["emotion_scores"] = _all_scores
-        #output_path = self.save_dir / f"{self.df_name}_{self.analysis_type}_chunk_{chunk_id}.parquet"
+        # output_path = self.save_dir / f"{self.df_name}_{self.analysis_type}_chunk_{chunk_id}.parquet"
         output_path = self.save_dir / f"{self.df_name}_{self.analysis_type}_chunk_{chunk_id}.parquet"
         chunk_df.to_parquet(output_path, index=False)
         if output_path.stat().st_size == 0:
@@ -259,9 +258,8 @@ class ReviewAnalyzer:
         self._save_dir = value
 
     @use_quantized.setter
-    def use_quantized(self,value):
+    def use_quantized(self, value):
         self._use_quantized = value
-
 
 
 works = pd.read_csv(fr"{ONEDRIVE_PATH}/Data/Maven Bookshelf/goodreads_works.csv")
@@ -269,13 +267,13 @@ reviews = pd.read_csv(fr"{ONEDRIVE_PATH}/Data/Maven Bookshelf/goodreads_reviews.
 # Here we convert some columns to integer and string values and fill missing values with 0
 # This solves an error when casting a type with missing values
 
-works['original_publication_year'] = pd.to_numeric(works['original_publication_year'], errors='coerce').fillna(0).astype(int)
+works['original_publication_year'] = pd.to_numeric(works['original_publication_year'], errors='coerce').fillna(
+    0).astype(int)
 works['num_pages'] = pd.to_numeric(works['num_pages'], errors='coerce').fillna(0).astype(int)
-works['isbn13'] = works['isbn13'].astype('string').str.replace(".0","", regex=False)
+works['isbn13'] = works['isbn13'].astype('string').str.replace(".0", "", regex=False)
 
 # Before we start we will fill missing values with a blank string.
 works['description'] = works['description'].fillna('')
-
 
 analyzer = ReviewAnalyzer(
     analysis_type="sentiment",  # or "emotion"
@@ -284,15 +282,16 @@ analyzer = ReviewAnalyzer(
     chunk_size=1000,
     batch_size=16,
     text_column="description",
-    df_name = "works",
+    df_name="works",
     use_quantized=False
 )
-print('Starting Works - Time: ',datetime.now())
-logging.set_verbosity_error() # Turn off logging except for major errors
+print('Starting Works - Time: ', datetime.now())
+logging.set_verbosity_error()  # Turn off logging except for major errors
 analyzer.run()
 
 # Create Vader Sentiment Score
-vader_analyzer=SentimentIntensityAnalyzer()
+vader_analyzer = SentimentIntensityAnalyzer()
+
 
 def get_sentiment(field_text):
     return vader_analyzer.polarity_scores(field_text)['compound']
@@ -300,10 +299,9 @@ def get_sentiment(field_text):
 
 # apply the function
 works['sentiment'] = works['description'].apply(get_sentiment)
-print('Works: Applied VADER Sentiment Analysis - Time: ',datetime.now())
-chunks=process_saved_chunks(analyzer.analysis_type,
-                            analyzer.df_name)
-
+print('Works: Applied VADER Sentiment Analysis - Time: ', datetime.now())
+chunks = process_saved_chunks(analyzer.analysis_type,
+                              analyzer.df_name)
 
 # Combine them
 works_sentiments = pd.concat(chunks, ignore_index=True)
@@ -319,19 +317,18 @@ analyzer = ReviewAnalyzer(
     analysis_type="emotion",
     model_name=MODEL_MAP["emotion"],
     data_frame=works,
-    save_dir = r".\emotion_chunks",
+    save_dir=r".\emotion_chunks",
     chunk_size=1000,
     batch_size=16,
     text_column="description",
-    df_name = "works",
+    df_name="works",
     use_quantized=False
 )
 
 analyzer.run()
 
-chunks=process_saved_chunks(analyzer.analysis_type,
-                            analyzer.df_name)
-
+chunks = process_saved_chunks(analyzer.analysis_type,
+                              analyzer.df_name)
 
 works_emotions = pd.concat(chunks, ignore_index=True)
 # Assuming 'works' has a unique identifier like 'work_id'
@@ -348,7 +345,7 @@ works_combined = works.merge(
 
 works_combined['emotion_scores'] = works_combined['emotion_scores'].apply(json.dumps)
 
-engine = create_engine(f'mysql+pymysql://root:$H0nggh0ri*@{SQLSERVER}:3306/mavenbookshelf')
+engine = create_engine(f'mysql+pymysql://andrew:$H0nggh0ri*@{SQLSERVER}:3306/mavenbookshelf')
 
 # Remove any previous data so we are starting with a fresh set of data
 with engine.connect() as conn:
@@ -360,30 +357,31 @@ works_combined.to_sql(
     con=engine,
     if_exists='append',
     index=False,
-        dtype={'emotion_scores': JSON}
+    dtype={'emotion_scores': JSON}
 )
-print('Works: Wrote to mySQL Server - Time: ',datetime.now())
-print('Starting Reviews - Time: ',datetime.now())
+print('Works: Wrote to mySQL Server - Time: ', datetime.now())
+print('Starting Reviews - Time: ', datetime.now())
+
 analyzer = ReviewAnalyzer(
     analysis_type="sentiment",  # or "emotion"
     model_name=MODEL_MAP["sentiment"],
     data_frame=reviews,
-    save_dir = r".\sentiment_chunks",
+    save_dir=r".\sentiment_chunks",
     chunk_size=10000,
     batch_size=16,
     text_column="review_text",
-    df_name = "reviews",
+    df_name="reviews",
     use_quantized=False
 )
 
-logging.set_verbosity_error() # Turn off logging except for major errors
+logging.set_verbosity_error()  # Turn off logging except for major errors
 analyzer.run()
 
 reviews['sentiment'] = reviews['review_text'].apply(get_sentiment)
-print('Reviews: Applied VADER Sentiment Analysis - Time: ',datetime.now())
+print('Reviews: Applied VADER Sentiment Analysis - Time: ', datetime.now())
 
-chunks=process_saved_chunks(analyzer.analysis_type,
-                            analyzer.df_name)
+chunks = process_saved_chunks(analyzer.analysis_type,
+                              analyzer.df_name)
 
 # Combine them
 reviews_sentiments = pd.concat(chunks, ignore_index=True)
@@ -399,23 +397,20 @@ analyzer = ReviewAnalyzer(
     analysis_type="emotion",
     model_name=MODEL_MAP["emotion"],
     data_frame=reviews,
-    save_dir = r".\emotion_chunks",
+    save_dir=r".\emotion_chunks",
     chunk_size=10000,
     batch_size=24,
     text_column="review_text",
-    df_name = "reviews",
+    df_name="reviews",
     use_quantized=False
 )
-
+print('Reviews: Starting Emotion Analysis - Time: ', datetime.now())
 analyzer.run()
 
-chunks=process_saved_chunks(analyzer.analysis_type,
-                            analyzer.df_name)
-
+chunks = process_saved_chunks(analyzer.analysis_type,
+                              analyzer.df_name)
 
 reviews_emotions = pd.concat(chunks, ignore_index=True)
-# Assuming 'reviews' has a unique identifier like 'work_id'
-#reviews_emotions = reviews_emotions.drop_duplicates(subset='work_id')
 
 print("reviews:", reviews.shape)
 print("reviews_emotions:", reviews_emotions.shape)
@@ -428,7 +423,6 @@ reviews_combined = reviews.merge(
     on='work_id',
     how='left'
 )
-
 print("After sentiment merge:", reviews_combined.shape)
 
 reviews_combined = reviews_combined.merge(
@@ -437,13 +431,10 @@ reviews_combined = reviews_combined.merge(
     how='left',
     copy=False
 )
-
 print("After emotion merge:", reviews_combined.shape)
 
-
-
 reviews_combined['emotion_scores'] = reviews_combined['emotion_scores'].apply(json.dumps)
-#engine = create_engine('mysql+pymysql://root:$H0nggh0ri*@localhost:3306/mavenbookshelf') # This was defined earlier.
+# engine = create_engine('mysql+pymysql://root:$H0nggh0ri*@localhost:3306/mavenbookshelf') # This was defined earlier.
 
 # Remove any previous data so we are starting with a fresh set of data
 with engine.connect() as conn:
@@ -455,5 +446,7 @@ reviews_combined.to_sql(
     con=engine,
     if_exists='append',
     index=False,
-        dtype={'emotion_scores': JSON}
+    dtype={'emotion_scores': JSON}
 )
+
+print('Reviews: Wrote to MySQL Database - Time: ',datetime.now())
