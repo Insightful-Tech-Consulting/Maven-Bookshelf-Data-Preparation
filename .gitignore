@@ -5,4 +5,5 @@
 **/emotion_chunks/*.*
 **/emotion_chucks-old/*.*
 **/sentiment_chunks/*.*
-**/sentiment_chucks_old/*.*parquet
+**/sentiment_chucks_old/*.*
+venv/
