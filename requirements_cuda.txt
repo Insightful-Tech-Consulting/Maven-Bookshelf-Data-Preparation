@@ -1,0 +1,24 @@
+# ── PyTorch with CUDA support ─────────────────────────────────────────────────
+# Before installing, check your CUDA version:
+#   nvidia-smi
+#
+# Then choose the matching index URL from https://pytorch.org/get-started/locally/
+#
+# CUDA 11.8:  --extra-index-url https://download.pytorch.org/whl/cu118
+# CUDA 12.1:  --extra-index-url https://download.pytorch.org/whl/cu121
+# CUDA 12.4:  --extra-index-url https://download.pytorch.org/whl/cu124
+#
+# ASUS TUF has CUDA 12.9 — cu124 wheels are compatible (CUDA is backward compatible)
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch
+torchvision
+torchaudio
+
+# ── Other dependencies (same as Apple Silicon) ────────────────────────────────
+transformers
+pandas
+sqlalchemy
+pymysql
+vaderSentiment
+tqdm
+pyarrow

@@ -1,8 +1,0 @@
-# Exclude all Parquet files
-*.parquet
-
-# Specific to Power BI Project folders
-**/emotion_chunks/*.parquet
-**/emotion_chucks-old/*.parquet
-**/sentimet_chunks/*.parquet
-**/sentimet_chucks-old/*.parquet
